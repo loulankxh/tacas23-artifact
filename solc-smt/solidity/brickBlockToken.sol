@@ -42,7 +42,7 @@ contract Ownable {
    * @dev Allows the current owner to transfer control of the contract to a newOwner.
    * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address newOwner) public onlyOwner {
+  function transferOwnership(address newOwner) virtual public onlyOwner {
     require(newOwner != address(0));
     emit OwnershipTransferred(owner, newOwner);
     owner = newOwner;
@@ -83,7 +83,7 @@ contract Pausable is Ownable {
   /**
    * @dev called by the owner to pause, triggers stopped state
    */
-  function pause() onlyOwner whenNotPaused public {
+  function pause() virtual onlyOwner whenNotPaused public {
     paused = true;
     emit Pause();
   }
@@ -296,15 +296,15 @@ contract PausableToken is StandardToken, Pausable {
     return super.transfer(_to, _value);
   }
 
-  function transferFrom(address _from, address _to, uint256 _value) override public whenNotPaused returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _value) virtual override public whenNotPaused returns (bool) {
     return super.transferFrom(_from, _to, _value);
   }
 
-  function approve(address _spender, uint256 _value) override public whenNotPaused returns (bool) {
+  function approve(address _spender, uint256 _value) virtual override public whenNotPaused returns (bool) {
     return super.approve(_spender, _value);
   }
 
-  function increaseApproval(address _spender, uint _addedValue) override public whenNotPaused returns (bool success) {
+  function increaseApproval(address _spender, uint _addedValue) virtual override public whenNotPaused returns (bool success) {
     return super.increaseApproval(_spender, _addedValue);
   }
 
@@ -337,7 +337,9 @@ contract BrickblockToken is PausableToken {
   bool onceUpgrade;
   Tx transaction;
   enum Tx {
-	FinalizeTokenSale, Evacuate, Unpause, DistributeToken, Transfer, EndSale
+	FinalizeTokenSale, Evacuate, Unpause, DistributeToken, Transfer,
+    TransferOwnership, Pause, TransferFrom, Approve, IncreaseApproval, DecreaseApproval,
+    ChangeBonusDistributionAddress, ChangeFountainContractAddress, Upgrade
   }
   
 
@@ -421,6 +423,7 @@ contract BrickblockToken is PausableToken {
   {
     require(_newAddress != address(this));
     bonusDistributionAddress = _newAddress;
+    transaction = Tx.ChangeBonusDistributionAddress;
     return true;
   }
 
@@ -434,6 +437,7 @@ contract BrickblockToken is PausableToken {
     require(_newAddress != address(this));
     require(_newAddress != owner);
     fountainContractAddress = _newAddress;
+    transaction = Tx.ChangeFountainContractAddress;
     return true;
   }
 
@@ -542,6 +546,7 @@ contract BrickblockToken is PausableToken {
     paused = true;
     emit Upgrade(successorAddress);
     onceUpgrade=true;
+    transaction = Tx.Upgrade;
     return true;
   }
 
@@ -567,6 +572,46 @@ contract BrickblockToken is PausableToken {
 //     }
 //     return false;
 //   }
+
+  function transferOwnership(address newOwner) override public {
+    super.transferOwnership(newOwner);
+    transaction = Tx.TransferOwnership;
+  }
+
+  function pause() override public {
+    super.pause();
+    transaction = Tx.Pause;
+  }
+
+  function transfer(address to, uint256 value) override public returns (bool) {
+    bool ret = super.transfer(to, value);
+    if (ret) transaction = Tx.Transfer;
+    return ret;
+  }
+
+  function transferFrom(address from, address to, uint256 value) override public returns (bool) {
+    bool ret = super.transferFrom(from, to, value);
+    if (ret) transaction = Tx.TransferFrom;
+    return ret;
+  }
+
+  function approve(address spender, uint256 value) override public returns (bool) {
+    bool ret = super.approve(spender, value);
+    if (ret) transaction = Tx.Approve;
+    return ret;
+  }
+
+  function increaseApproval(address _spender, uint _addedValue) override public returns (bool) {
+    bool ret = super.increaseApproval(_spender, _addedValue);
+    if (ret) transaction = Tx.IncreaseApproval;
+    return ret;
+  }
+
+  function decreaseApproval(address _spender, uint _subtractedValue) override public returns (bool) {
+    bool ret = super.decreaseApproval(_spender, _subtractedValue);
+    if (ret) transaction = Tx.DecreaseApproval;
+    return ret;
+  }
 
   // fallback function - do not allow any eth transfers to this contract
   fallback()

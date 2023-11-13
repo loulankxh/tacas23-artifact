@@ -120,7 +120,7 @@ contract StandardToken is ERC20, BasicToken {
    * @param _to address The address which you want to transfer to
    * @param _value uint256 the amout of tokens to be transfered
    */
-  function transferFrom(address _from, address _to, uint256 _value) public override returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _value) public virtual override returns (bool) {
     uint256 _allowance = allowed[_from][msg.sender];
 
     // Check is not needed because sub(_allowance, _value) will already throw if this condition is not met
@@ -138,7 +138,7 @@ contract StandardToken is ERC20, BasicToken {
    * @param _spender The address which will spend the funds.
    * @param _value The amount of tokens to be spent.
    */
-  function approve(address _spender, uint256 _value) public override returns (bool) {
+  function approve(address _spender, uint256 _value) public virtual override returns (bool) {
 
     // To change the approve amount you first have to reduce the addresses`
     //  allowance to zero by calling `approve(_spender, 0)` if it is not
@@ -195,7 +195,7 @@ contract Ownable {
    * @dev Allows the current owner to transfer control of the contract to a newOwner.
    * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address newOwner) public onlyOwner {
+  function transferOwnership(address newOwner) virtual public onlyOwner {
     if (newOwner != address(0)) {
       owner = newOwner;
     }
@@ -242,7 +242,7 @@ contract MintableToken is StandardToken, Ownable {
    * @dev Function to stop minting new tokens.
    * @return True if the operation was successful.
    */
-  function finishMinting() public onlyOwner returns (bool) {
+  function finishMinting() virtual public onlyOwner returns (bool) {
     mintingFinished = true;
     emit MintFinished();
     return true;
@@ -369,7 +369,8 @@ contract CappedCrowdsale is Crowdsale {
   
   Tx transaction;
   enum Tx {
-	BuyTokens,Finalize,Mint,Transfer,TransferFrom
+	BuyTokens,Finalize,Mint,Transfer,TransferFrom,
+    Approve, TransferOwnership, FinishMinting
   }
 
   constructor(uint256 _startBlock, uint256 _endBlock, uint256 _rate, uint256 _cap) 
@@ -421,6 +422,29 @@ contract CappedCrowdsale is Crowdsale {
   function buyTokens(address beneficiary) override public payable {
  	super.buyTokens(beneficiary);
         transaction=Tx.BuyTokens;
+  }
+
+  function transferFrom(address from, address to, uint256 value) override public returns (bool) {
+    bool ret = super.transferFrom(from, to, value);
+    if (ret) transaction = Tx.TransferFrom;
+    return ret;
+  }
+
+  function approve(address spender, uint256 value) override public returns (bool) {
+    bool ret = super.approve(spender, value);
+    if (ret) transaction = Tx.Approve;
+    return ret;
+  }
+
+  function transferOwnership(address newOwner) override public {
+    super.transferOwnership(newOwner);
+    transaction = Tx.TransferOwnership;
+  }
+
+  function finishMinting() override public returns (bool) {
+    bool ret = super.finishMinting();
+    if (ret) transaction = Tx.FinishMinting;
+    return ret;
   }
 
   function buyAfterFinalization() public view {

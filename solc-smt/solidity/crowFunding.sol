@@ -67,6 +67,12 @@ contract Crowdsale {
 
   //address payable constant init = payable(address(uint160(0xDEADBEEF)));
 
+  Tx transaction;
+  enum Tx {
+    Invest, Close
+  }
+
+
   constructor() public{
     escrow = new Escrow(payable(address(0xDEADBEEF)));
     closed = false;
@@ -79,6 +85,7 @@ contract Crowdsale {
     require(raised < goal);
     escrow.deposit{value: msg.value}(msg.sender);
     raised += msg.value;
+    transaction = Tx.Invest;
   }
 
   function close() public{
@@ -88,8 +95,9 @@ contract Crowdsale {
       closed = true;
     } else {
       escrow.refund();
-onceRefund=true;
+      onceRefund=true;
 	 }
+    transaction = Tx.Close;
   }
   function checkRefundAndRaised() public view {
      assert(!(onceRefund && (raised >= goal)));
