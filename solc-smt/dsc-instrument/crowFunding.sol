@@ -46,6 +46,11 @@ contract CrowFunding {
   struct RefundAndWithdrawTuple {
     bool _valid;
   }
+  Tx transaction;
+  enum Tx {
+      Withdraw, Close, Invest, Refund
+  }
+
   TargetTuple target;
   RaisedTuple raised;
   ClosedTuple closed;
@@ -80,24 +85,28 @@ contract CrowFunding {
       if(r10==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.Withdraw;
   }
   function close() public  checkViolations  {
       bool r11 = updateClosedOnInsertRecv_close_r11();
       if(r11==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.Close;
   }
   function invest() public  checkViolations payable  {
       bool r5 = updateInvestOnInsertRecv_invest_r5();
       if(r5==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.Invest;
   }
   function refund() public  checkViolations  {
       bool r4 = updateRefundOnInsertRecv_refund_r4();
       if(r4==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.Refund;
   }
   function getRaised() public view  returns (uint) {
       uint n = raised.n;

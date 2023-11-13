@@ -50,7 +50,8 @@ contract BrickBlockToken {
   bool onceUnpaused;
   Tx transaction;
   enum Tx {
-	FinalizeTokenSale, Evacuate, Unpause, DistributeToken, Transfer, EndSale
+	FinalizeTokenSale, Evacuate, Unpause, DistributeToken, Transfer,
+    Upgrade, DecreaseApproval, TransferFrom, Approve, IncreaseApproval, ChangeFountainContractAddress
   }
 
   mapping(address=>BalancesTuple) balances;
@@ -91,6 +92,7 @@ contract BrickBlockToken {
         revert("Rule condition failed");
       }
       onceUpgrade=true;
+      transaction = Tx.Upgrade;
   }
   function finalizeTokenSale() public    {
       bool r30 = updateFinalizeTokenSaleOnInsertRecv_finalizeTokenSale_r30();
@@ -105,6 +107,7 @@ contract BrickBlockToken {
       if(r1==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.DecreaseApproval;
   }
   function distributeTokens(address p,uint v) public    {
       bool r27 = updateDistributeTokensOnInsertRecv_distributeTokens_r27(p,v);
@@ -133,6 +136,7 @@ contract BrickBlockToken {
       if(r23==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.TransferFrom;
   }
   function approve(address s,uint n) public    {
       bool r33 = updateApproveOnInsertRecv_approve_r33(s,n);
@@ -141,18 +145,21 @@ contract BrickBlockToken {
       if(r33==false && r13==false && r47==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.Approve;
   }
   function increaseApproval(address s,uint a) public    {
       bool r34 = updateIncreaseAllowanceOnInsertRecv_increaseApproval_r34(s,a);
       if(r34==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.IncreaseApproval;
   }
   function changeFountainContractAddress(address p) public    {
       bool r19 = updateFountainContractAddressOnInsertRecv_changeFountainContractAddress_r19(p);
       if(r19==false) {
         revert("Rule condition failed");
       }
+      transaction = Tx.ChangeFountainContractAddress;
   }
   function transfer(address to,uint a) public    {
       bool r20 = updateTransferOnInsertRecv_transfer_r20(to,a);
