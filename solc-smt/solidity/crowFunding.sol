@@ -15,6 +15,11 @@ contract Escrow {
   bool onceWithdraw;
   bool onceRefund;
 
+  Tx transaction;
+  enum Tx {
+    Deposit, Withdraw, ClaimRefund, Close, Refund
+  }
+
   constructor(address payable b) public {
     beneficiary = b;
     owner = msg.sender;
@@ -28,6 +33,7 @@ contract Escrow {
     deposits[p] = deposits[p] + msg.value;
     totalFunds += msg.value;
     raised += msg.value;
+    transaction = Tx.Deposit;
   }
 
   function withdraw() public {
@@ -35,6 +41,7 @@ contract Escrow {
     beneficiary.transfer(address(this).balance);
     totalFunds = 0;
     onceWithdraw=true;
+    transaction = Tx.Withdraw;
   }
 
   function claimRefund(address payable p) public {
@@ -44,11 +51,18 @@ contract Escrow {
     p.transfer(amount);
     totalFunds -= amount;
     onceRefund=true;
+    transaction = Tx.ClaimRefund;
   }
 
   modifier onlyOwner {require(owner == msg.sender); _; }
-  function close() onlyOwner public{state = State.SUCCESS;}
-  function refund() onlyOwner public{state = State.REFUND;}
+  function close() onlyOwner public{
+    state = State.SUCCESS;
+    transaction = Tx.Close;
+  }
+  function refund() onlyOwner public{
+    state = State.REFUND;
+    transaction = Tx.Refund;
+  }
   function check() public view {
     assert(totalFunds == raised || state != State.OPEN);
   }
@@ -67,12 +81,6 @@ contract Crowdsale {
 
   //address payable constant init = payable(address(uint160(0xDEADBEEF)));
 
-  Tx transaction;
-  enum Tx {
-    Invest, Close
-  }
-
-
   constructor() public{
     escrow = new Escrow(payable(address(0xDEADBEEF)));
     closed = false;
@@ -85,7 +93,6 @@ contract Crowdsale {
     require(raised < goal);
     escrow.deposit{value: msg.value}(msg.sender);
     raised += msg.value;
-    transaction = Tx.Invest;
   }
 
   function close() public{
@@ -97,7 +104,6 @@ contract Crowdsale {
       escrow.refund();
       onceRefund=true;
 	 }
-    transaction = Tx.Close;
   }
   function checkRefundAndRaised() public view {
      assert(!(onceRefund && (raised >= goal)));

@@ -11,6 +11,7 @@ contract Escrow {
   address payable beneficiary;
   uint256 totalFunds;
   uint256 raised;
+  uint256 goal = 10000 * 10**18;
 
   bool onceWithdraw;
   bool onceRefund;
@@ -22,6 +23,13 @@ contract Escrow {
     require(!(onceRefund && onceWithdraw));
     _;
     assert(!(onceRefund && onceWithdraw));
+    require(!(onceRefund && (raised >= goal)));
+    _;
+    assert(!(onceRefund && (raised >= goal)));
+  }
+  Tx transaction;
+  enum Tx {
+    Deposit, Withdraw, ClaimRefund, Close, Refund
   }
 
   constructor(address payable b) public {
@@ -37,6 +45,7 @@ contract Escrow {
     deposits[p] = deposits[p] + msg.value;
     totalFunds += msg.value;
     raised += msg.value;
+    transaction = Tx.Deposit;
   }
 
   function withdraw() public checkInvariant {
@@ -44,6 +53,7 @@ contract Escrow {
     beneficiary.transfer(address(this).balance);
     totalFunds = 0;
     onceWithdraw=true;
+    transaction = Tx.Withdraw;
   }
 
   function claimRefund(address payable p) public checkInvariant {
@@ -53,71 +63,81 @@ contract Escrow {
     p.transfer(amount);
     totalFunds -= amount;
     onceRefund=true;
+    transaction = Tx.ClaimRefund;
   }
 
   modifier onlyOwner {require(owner == msg.sender); _; }
-  function close() onlyOwner public checkInvariant {state = State.SUCCESS;}
-  function refund() onlyOwner public checkInvariant {state = State.REFUND;}
+  function close() onlyOwner public checkInvariant {
+    state = State.SUCCESS;
+    transaction = Tx.Close;
+  }
+  function refund() onlyOwner public checkInvariant {
+    state = State.REFUND;
+    transaction = Tx.Refund;
+  }
 //  function check() public view {
 //    assert(totalFunds == raised || state != State.OPEN);
 //  }
 //  function checkRefundWithdraw() public view {
 //     assert(!(onceRefund && onceWithdraw));
 //  }
-}
-
-contract Crowdsale {
-  Escrow escrow;
-  uint256 raised = 0;
-  uint256 goal = 10000 * 10**18;
-  uint256 closeTime = block.timestamp + 30 days;
-  bool closed;
-  bool onceRefund;
-
-  //address payable constant init = payable(address(uint160(0xDEADBEEF)));
-
-  Tx transaction;
-  enum Tx {
-    Invest, Close
-  }
-
-  modifier checkInvariant {
-    require(!(onceRefund && (raised >= goal)));
-    _;
-    assert(!(onceRefund && (raised >= goal)));
-  }
-
-  constructor() public{
-    escrow = new Escrow(payable(address(0xDEADBEEF)));
-    closed = false;
-	onceRefund=false;
-  }
-
-  function invest() payable public checkInvariant {
-    // fix:
-    require(block.timestamp<=closeTime);
-    require(raised < goal);
-    escrow.deposit{value: msg.value}(msg.sender);
-    raised += msg.value;
-    transaction = Tx.Invest;
-  }
-
-  function close() public checkInvariant {
-    require(block.timestamp > closeTime || raised >= goal);
-    if (raised >= goal) {
-      escrow.close();
-      closed = true;
-    } else {
-      escrow.refund();
-      onceRefund=true;
-	 }
-    transaction = Tx.Close;
-  }
 //  function checkRefundAndRaised() public view {
 //     assert(!(onceRefund && (raised >= goal)));
 //  }
 }
 
-contract Deployer{
-    Crowdsale c = new Crowdsale();
-}
+//contract Crowdsale {
+//  Escrow escrow;
+//  uint256 raised = 0;
+//  uint256 goal = 10000 * 10**18;
+//  uint256 closeTime = block.timestamp + 30 days;
+//  bool closed;
+//  bool onceRefund;
+//
+//  //address payable constant init = payable(address(uint160(0xDEADBEEF)));
+//
+//  Tx transaction;
+//  enum Tx {
+//    Invest, Close
+//  }
+//
+//  modifier checkInvariant {
+//    require(!(onceRefund && (raised >= goal)));
+//    _;
+//    assert(!(onceRefund && (raised >= goal)));
+//  }
+//
+//  constructor() public{
+//    escrow = new Escrow(payable(address(0xDEADBEEF)));
+//    closed = false;
+//	onceRefund=false;
+//  }
+//
+//  function invest() payable public checkInvariant {
+//    // fix:
+//    require(block.timestamp<=closeTime);
+//    require(raised < goal);
+//    escrow.deposit{value: msg.value}(msg.sender);
+//    raised += msg.value;
+//    transaction = Tx.Invest;
+//  }
+//
+//  function close() public checkInvariant {
+//    require(block.timestamp > closeTime || raised >= goal);
+//    if (raised >= goal) {
+//      escrow.close();
+//      closed = true;
+//    } else {
+//      escrow.refund();
+//      onceRefund=true;
+//	 }
+//    transaction = Tx.Close;
+//  }
+////  function checkRefundAndRaised() public view {
+////     assert(!(onceRefund && (raised >= goal)));
+////  }
+//}
+//
+//contract Deployer{
+//    Crowdsale c = new Crowdsale();
+//}
