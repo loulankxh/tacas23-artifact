@@ -68,13 +68,17 @@ contract CrowFunding {
     event Closed(bool b);
     event Withdraw(address p,uint n);
 
-    modifier checkInvariant {
+    modifier checkMissingFund {
         require(totalBalance.m == raised.n);
         _;
         assert(totalBalance.m == raised.n);
+    }
+    modifier checkRefundAndWithdraw {
         require(!(onceRefund.b && onceWithdraw.b));
         _;
         assert(!(onceRefund.b && onceWithdraw.b));
+    }
+    modifier checkIllegalRefund {
         require(!(onceRefund.b && raised.n >= target.t));
         _;
         assert(!(onceRefund.b && raised.n >= target.t));
@@ -92,28 +96,28 @@ contract CrowFunding {
         bool b = closed.b;
         return b;
     }
-    function withdraw() public checkInvariant {
+    function withdraw() public checkMissingFund checkRefundAndWithdraw checkIllegalRefund {
         bool r10 = updateWithdrawOnInsertRecv_withdraw_r10();
         if(r10==false) {
             revert("Rule condition failed");
         }
         transaction = Tx.Withdraw;
     }
-    function close() public checkInvariant {
+    function close() public checkMissingFund checkRefundAndWithdraw checkIllegalRefund {
         bool r11 = updateClosedOnInsertRecv_close_r11();
         if(r11==false) {
             revert("Rule condition failed");
         }
         transaction = Tx.Close;
     }
-    function invest() public checkInvariant payable  {
+    function invest() public checkMissingFund checkRefundAndWithdraw checkIllegalRefund payable  {
         bool r5 = updateInvestOnInsertRecv_invest_r5();
         if(r5==false) {
             revert("Rule condition failed");
         }
         transaction = Tx.Invest;
     }
-    function refund() public checkInvariant {
+    function refund() public checkMissingFund checkRefundAndWithdraw checkIllegalRefund {
         bool r4 = updateRefundOnInsertRecv_refund_r4();
         if(r4==false) {
             revert("Rule condition failed");

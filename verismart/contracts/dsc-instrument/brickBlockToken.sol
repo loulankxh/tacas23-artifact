@@ -80,16 +80,25 @@ contract BrickBlockToken {
   event BonusDistributionAddress(address p);
   event Transfer(address from,address to,uint a);
 
-  modifier checkInvariant {
+  modifier checkTransferBeforeUnpause {
       require(transaction==Tx.Transfer && !onceUnpaused);
       _;
       assert(transaction==Tx.Transfer && !onceUnpaused);
+  }
+
+  modifier checkTransferAfterEndSale {
       require(!(transaction==Tx.DistributeToken && onceFinalize));
       _;
       assert(!(transaction==Tx.DistributeToken && onceFinalize));
+  }
+
+  modifier checkEvacuateAfterUpgrade {
       require(transaction==Tx.Evacuate && !onceUpgrade);
       _;
       assert(transaction==Tx.Evacuate && !onceUpgrade);
+  }
+
+  modifier checkDeadAfterPause {
       require(paused.p || !dead.b);
       _;
       assert(paused.p || !dead.b);
@@ -102,7 +111,7 @@ contract BrickBlockToken {
     updateOnceUpgradeOnInsertConstructor_r18();
     updateOnceUnpausedOnInsertConstructor_r41();
   }
-  function upgrade(address p) public checkInvariant   {
+  function upgrade(address p) public checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause   {
       bool r37 = updateUpgradeOnInsertRecv_upgrade_r37(p);
       if(r37==false) {
         revert("Rule condition failed");
@@ -110,7 +119,7 @@ contract BrickBlockToken {
       onceUpgrade=true;
       transaction = Tx.Upgrade;
   }
-  function finalizeTokenSale() public  checkInvariant  {
+  function finalizeTokenSale() public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r30 = updateFinalizeTokenSaleOnInsertRecv_finalizeTokenSale_r30();
       if(r30==false) {
         revert("Rule condition failed");
@@ -118,21 +127,21 @@ contract BrickBlockToken {
       onceFinalize = true;
       transaction = Tx.FinalizeTokenSale;
   }
-  function decreaseApproval(address s,uint a) public  checkInvariant  {
+  function decreaseApproval(address s,uint a) public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r1 = updateDecreaseAllowanceOnInsertRecv_decreaseApproval_r1(s,a);
       if(r1==false) {
         revert("Rule condition failed");
       }
       transaction = Tx.DecreaseApproval;
   }
-  function distributeTokens(address p,uint v) public  checkInvariant  {
+  function distributeTokens(address p,uint v) public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r27 = updateDistributeTokensOnInsertRecv_distributeTokens_r27(p,v);
       if(r27==false) {
         revert("Rule condition failed");
       }
       transaction=Tx.DistributeToken;
   }
-  function unpause() public  checkInvariant  {
+  function unpause() public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r3 = updateUnpauseOnInsertRecv_unpause_r3();
       if(r3==false) {
         revert("Rule condition failed");
@@ -140,21 +149,21 @@ contract BrickBlockToken {
       transaction=Tx.Unpause;
       onceUnpaused=true;
   }
-  function evacuate(address p) public  checkInvariant  {
+  function evacuate(address p) public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r12 = updateBurnOnInsertRecv_evacuate_r12(p);
       if(r12==false) {
         revert("Rule condition failed");
       }
       transaction=Tx.Evacuate;
   }
-  function transferFrom(address from,address to,uint a) public  checkInvariant  {
+  function transferFrom(address from,address to,uint a) public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r23 = updateTransferFromOnInsertRecv_transferFrom_r23(from,to,a);
       if(r23==false) {
         revert("Rule condition failed");
       }
       transaction = Tx.TransferFrom;
   }
-  function approve(address s,uint n) public  checkInvariant  {
+  function approve(address s,uint n) public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r33 = updateApproveOnInsertRecv_approve_r33(s,n);
       bool r13 = updateDecreaseAllowanceOnInsertRecv_approve_r13(s,n);
       bool r47 = updateIncreaseAllowanceOnInsertRecv_approve_r47(s,n);
@@ -163,21 +172,21 @@ contract BrickBlockToken {
       }
       transaction = Tx.Approve;
   }
-  function increaseApproval(address s,uint a) public  checkInvariant  {
+  function increaseApproval(address s,uint a) public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r34 = updateIncreaseAllowanceOnInsertRecv_increaseApproval_r34(s,a);
       if(r34==false) {
         revert("Rule condition failed");
       }
       transaction = Tx.IncreaseApproval;
   }
-  function changeFountainContractAddress(address p) public  checkInvariant  {
+  function changeFountainContractAddress(address p) public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r19 = updateFountainContractAddressOnInsertRecv_changeFountainContractAddress_r19(p);
       if(r19==false) {
         revert("Rule condition failed");
       }
       transaction = Tx.ChangeFountainContractAddress;
   }
-  function transfer(address to,uint a) public  checkInvariant  {
+  function transfer(address to,uint a) public  checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause  {
       bool r20 = updateTransferOnInsertRecv_transfer_r20(to,a);
       if(r20==false) {
         revert("Rule condition failed");

@@ -16,13 +16,18 @@ contract Escrow {
   bool onceWithdraw;
   bool onceRefund;
 
-  modifier checkInvariant {
+  modifier check {
     require(totalFunds == raised || state != State.OPEN);
     _;
     assert(totalFunds == raised || state != State.OPEN);
+    
+  }
+  modifier checkRefundWithdraw {
     require(!(onceRefund && onceWithdraw));
     _;
     assert(!(onceRefund && onceWithdraw));
+  }
+  modifier checkRefundAndRaised {
     require(!(onceRefund && (raised >= goal)));
     _;
     assert(!(onceRefund && (raised >= goal)));
@@ -41,14 +46,14 @@ contract Escrow {
     onceRefund=false;
   }
 
-  function deposit(address p) onlyOwner public checkInvariant payable {
+  function deposit(address p) onlyOwner public check checkRefundWithdraw checkRefundAndRaised payable {
     deposits[p] = deposits[p] + msg.value;
     totalFunds += msg.value;
     raised += msg.value;
     transaction = Tx.Deposit;
   }
 
-  function withdraw() public checkInvariant {
+  function withdraw() public check checkRefundWithdraw checkRefundAndRaised {
     require(state == State.SUCCESS);
     beneficiary.transfer(address(this).balance);
     totalFunds = 0;
@@ -56,7 +61,7 @@ contract Escrow {
     transaction = Tx.Withdraw;
   }
 
-  function claimRefund(address payable p) public checkInvariant {
+  function claimRefund(address payable p) public check checkRefundWithdraw checkRefundAndRaised {
     require(state == State.REFUND);
     uint256 amount = deposits[p];
     deposits[p] = 0;
@@ -67,11 +72,11 @@ contract Escrow {
   }
 
   modifier onlyOwner {require(owner == msg.sender); _; }
-  function close() onlyOwner public checkInvariant {
+  function close() onlyOwner public check checkRefundWithdraw checkRefundAndRaised {
     state = State.SUCCESS;
     transaction = Tx.Close;
   }
-  function refund() onlyOwner public checkInvariant {
+  function refund() onlyOwner public check checkRefundWithdraw checkRefundAndRaised {
     state = State.REFUND;
     transaction = Tx.Refund;
   }

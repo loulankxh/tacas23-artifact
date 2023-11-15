@@ -62,10 +62,13 @@ contract CappedCrowdSale {
 	BuyToken,Finalize, TransferFrom, Approve, Mint, Burn, Transfer
   }
 
-    modifier checkInvariant {
+    modifier checkBuyAfterFinalization {
         require(!(transaction==Tx.BuyToken && onceFinalized));
         _;
         assert(!(transaction==Tx.BuyToken && onceFinalized));
+    }
+
+    modifier checkEndAfterFinalization {
         require(!(onceFinalized && block.timestamp < end.time && raised.n<cap.n));
         _;
         assert(!(onceFinalized && block.timestamp < end.time && raised.n<cap.n));
@@ -76,7 +79,7 @@ contract CappedCrowdSale {
     updateOnceFinalizeOnInsertConstructor_r16();
     updateOwnerOnInsertConstructor_r4();
   }
-  function finalize() public  checkInvariant  {
+  function finalize() public  checkBuyAfterFinalization checkEndAfterFinalization  {
       bool r27 = updateFinalizeOnInsertRecv_finalize_r27();
       bool r17 = updateFinalizeOnInsertRecv_finalize_r17();
       if(r27==false && r17==false) {
@@ -85,21 +88,21 @@ contract CappedCrowdSale {
       onceFinalized=true;
       transaction=Tx.Finalize;
   }
-  function approve(address s,uint n) public  checkInvariant  {
+  function approve(address s,uint n) public  checkBuyAfterFinalization checkEndAfterFinalization  {
       bool r24 = updateIncreaseAllowanceOnInsertRecv_approve_r24(s,n);
       if(r24==false) {
         revert("Rule condition failed");
       }
       transaction=Tx.Approve;
   }
-  function transferFrom(address from,address to,uint amount) public  checkInvariant  {
+  function transferFrom(address from,address to,uint amount) public  checkBuyAfterFinalization checkEndAfterFinalization  {
       bool r25 = updateTransferFromOnInsertRecv_transferFrom_r25(from,to,amount);
       if(r25==false) {
         revert("Rule condition failed");
       }
       transaction=Tx.TransferFrom;
   }
-  function mint(address p,uint amount) public  checkInvariant  {
+  function mint(address p,uint amount) public  checkBuyAfterFinalization checkEndAfterFinalization  {
       bool r23 = updateMintOnInsertRecv_mint_r23(p,amount);
       if(r23==false) {
         revert("Rule condition failed");
@@ -118,21 +121,21 @@ contract CappedCrowdSale {
       uint n = balanceOf[p].n;
       return n;
   }
-  function transfer(address to,uint amount) public  checkInvariant  {
+  function transfer(address to,uint amount) public  checkBuyAfterFinalization checkEndAfterFinalization  {
       bool r20 = updateTransferOnInsertRecv_transfer_r20(to,amount);
       if(r20==false) {
         revert("Rule condition failed");
       }
       transaction=Tx.Transfer;
   }
-  function buyToken(address p,uint amount) public  checkInvariant  {
+  function buyToken(address p,uint amount) public  checkBuyAfterFinalization checkEndAfterFinalization  {
       bool r10 = updateBuyTokenOnInsertRecv_buyToken_r10(p,amount);
       if(r10==false) {
         revert("Rule condition failed");
       }
       transaction=Tx.BuyToken;
   }
-  function burn(address p,uint amount) public  checkInvariant  {
+  function burn(address p,uint amount) public  checkBuyAfterFinalization checkEndAfterFinalization  {
       bool r14 = updateBurnOnInsertRecv_burn_r14(p,amount);
       if(r14==false) {
         revert("Rule condition failed");

@@ -362,16 +362,22 @@ contract BrickblockToken is PausableToken {
     _;
   }
 
-  modifier checkInvariant() {
+  modifier checkTransferBeforeUnpause {
     require(transaction==Tx.Transfer && !onceUnpaused);
     _;
     assert(transaction==Tx.Transfer && !onceUnpaused);
+  }
+  modifier checkTransferAfterEndSale {
     require(!(transaction==Tx.DistributeToken && onceFinalize));
     _;
     assert(!(transaction==Tx.DistributeToken && onceFinalize));
+  }
+  modifier checkEvacuateAfterUpgrade {
     require(transaction==Tx.Evacuate && !onceUpgrade);
     _;
     assert(transaction==Tx.Evacuate && !onceUpgrade);
+  }
+  modifier checkDeadAfterPause {
     require(paused || !dead);
     _;
     assert(paused || !dead);
@@ -414,7 +420,7 @@ contract BrickblockToken is PausableToken {
     override
     onlyOwner
     whenPaused
-    checkInvariant
+    checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause
   {
     require(dead == false);
     super.unpause();
@@ -434,7 +440,7 @@ contract BrickblockToken is PausableToken {
   // decide which wallet to use to distribute bonuses at a later date
   function changeBonusDistributionAddress(address _newAddress)
     public
-    onlyOwner checkInvariant
+    onlyOwner checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause
     returns (bool)
   {
     require(_newAddress != address(this));
@@ -446,7 +452,7 @@ contract BrickblockToken is PausableToken {
   // fountain contract might change over time... need to be able to change it
   function changeFountainContractAddress(address _newAddress)
     public
-    onlyOwner checkInvariant
+    onlyOwner checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause
     returns (bool)
   {
     // require(isContract(_newAddress));
@@ -461,7 +467,7 @@ contract BrickblockToken is PausableToken {
   function distributeTokens(address _contributor, uint256 _value)
     public
     onlyOwner
-    supplyAvailable(_value) checkInvariant
+    supplyAvailable(_value) checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause
     returns (bool)
   {
     require(tokenSaleActive == true);
@@ -477,7 +483,7 @@ contract BrickblockToken is PausableToken {
   // Calculate the shares for company, bonus & contibutors based on the intiial 50mm number - not what is left over after burning
   function finalizeTokenSale()
     public
-    onlyOwner checkInvariant
+    onlyOwner checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause
     returns (bool)
   {
     // ensure that sale is active. is set to false at the end. can only be performed once.
@@ -534,7 +540,7 @@ contract BrickblockToken is PausableToken {
   // approvals are not included due to data structure
   function evacuate(address _user)
     public
-    only(successorAddress) checkInvariant
+    only(successorAddress) checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause
     returns (bool)
   {
     require(dead);
@@ -552,7 +558,7 @@ contract BrickblockToken is PausableToken {
   // it will be paused to dissallow transfer of tokens
   function upgrade(address _successorAddress)
     public
-    onlyOwner checkInvariant
+    onlyOwner checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause
     returns (bool)
   {
     require(_successorAddress != address(0));
@@ -589,41 +595,41 @@ contract BrickblockToken is PausableToken {
 //     return false;
 //   }
 
-  function transferOwnership(address newOwner) override public checkInvariant {
+  function transferOwnership(address newOwner) override public checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause {
     super.transferOwnership(newOwner);
     transaction = Tx.TransferOwnership;
   }
 
-  function pause() override public checkInvariant {
+  function pause() override public checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause {
     super.pause();
     transaction = Tx.Pause;
   }
 
-  function transfer(address to, uint256 value) override public checkInvariant returns (bool) {
+  function transfer(address to, uint256 value) override public checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause returns (bool) {
     bool ret = super.transfer(to, value);
     if (ret) transaction = Tx.Transfer;
     return ret;
   }
 
-  function transferFrom(address from, address to, uint256 value) override public checkInvariant returns (bool) {
+  function transferFrom(address from, address to, uint256 value) override public checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause returns (bool) {
     bool ret = super.transferFrom(from, to, value);
     if (ret) transaction = Tx.TransferFrom;
     return ret;
   }
 
-  function approve(address spender, uint256 value) override public checkInvariant returns (bool) {
+  function approve(address spender, uint256 value) override public checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause returns (bool) {
     bool ret = super.approve(spender, value);
     if (ret) transaction = Tx.Approve;
     return ret;
   }
 
-  function increaseApproval(address _spender, uint _addedValue) override public checkInvariant returns (bool) {
+  function increaseApproval(address _spender, uint _addedValue) override public checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause returns (bool) {
     bool ret = super.increaseApproval(_spender, _addedValue);
     if (ret) transaction = Tx.IncreaseApproval;
     return ret;
   }
 
-  function decreaseApproval(address _spender, uint _subtractedValue) override public checkInvariant returns (bool) {
+  function decreaseApproval(address _spender, uint _subtractedValue) override public checkTransferBeforeUnpause checkTransferAfterEndSale checkEvacuateAfterUpgrade checkDeadAfterPause returns (bool) {
     bool ret = super.decreaseApproval(_spender, _subtractedValue);
     if (ret) transaction = Tx.DecreaseApproval;
     return ret;

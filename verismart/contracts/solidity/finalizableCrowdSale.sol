@@ -404,10 +404,12 @@ contract FinalizableCrowdsale is Crowdsale {
     Approve, TransferOwnership, FinishMinting
   }
 
-  modifier checkInvariant {
+  modifier checkBuyAfterFinalization {
     require(!(transaction==Tx.BuyTokens && onceFinalized));
     _;
     assert(!(transaction==Tx.BuyTokens && onceFinalized));
+  }
+  modifier checkEndAfterFinalization {
     require(!(onceFinalized && block.timestamp < endBlock));
     _;
     assert(!(onceFinalized && block.timestamp < endBlock));
@@ -418,7 +420,7 @@ contract FinalizableCrowdsale is Crowdsale {
 
   // should be called after crowdsale ends, to do
   // some extra finalization work
-  function finalize() public onlyOwner checkInvariant {
+  function finalize() public onlyOwner checkBuyAfterFinalization checkEndAfterFinalization {
     require(!isFinalized);
     require(hasEnded());
 
@@ -437,40 +439,40 @@ contract FinalizableCrowdsale is Crowdsale {
   //   token.finishMinting();
   // }
   
-  function mint(address _to, uint256 _amount) override public checkInvariant returns (bool) {
+  function mint(address _to, uint256 _amount) override public checkBuyAfterFinalization checkEndAfterFinalization returns (bool) {
       bool ret = super.mint(_to,_amount);
       if (ret) {transaction=Tx.Mint;}
 	return ret;
   }
 
-  function transfer(address _to, uint256 _amount) override (BasicToken,ERC20Basic) public checkInvariant returns (bool) {
+  function transfer(address _to, uint256 _amount) override (BasicToken,ERC20Basic) public checkBuyAfterFinalization checkEndAfterFinalization returns (bool) {
       bool ret = super.transfer(_to,_amount);
       if (ret) {transaction=Tx.Transfer;}
       return ret;
   }
-  function buyTokens(address beneficiary) override public checkInvariant payable {
+  function buyTokens(address beneficiary) override public checkBuyAfterFinalization checkEndAfterFinalization payable {
  	super.buyTokens(beneficiary);
         transaction=Tx.BuyTokens;
   }
 
-  function transferFrom(address from, address to, uint256 value) override public checkInvariant returns (bool) {
+  function transferFrom(address from, address to, uint256 value) override public checkBuyAfterFinalization checkEndAfterFinalization returns (bool) {
     bool ret = super.transferFrom(from ,to, value);
     if (ret) transaction = Tx.TransferFrom;
     return ret;
   }
 
-  function approve(address spender, uint256 value) override public checkInvariant returns (bool) {
+  function approve(address spender, uint256 value) override public checkBuyAfterFinalization checkEndAfterFinalization returns (bool) {
     bool ret = super.approve(spender, value);
     if (ret) transaction = Tx.Approve;
     return ret;
   }
 
-  function transferOwnership(address newOwner) override public checkInvariant {
+  function transferOwnership(address newOwner) override public checkBuyAfterFinalization checkEndAfterFinalization {
     super.transferOwnership(newOwner);
     transaction = Tx.TransferOwnership;
   }
 
-  function finishMinting() override public checkInvariant returns (bool) {
+  function finishMinting() override public checkBuyAfterFinalization checkEndAfterFinalization returns (bool) {
     bool ret = super.finishMinting();
     transaction = Tx.FinishMinting;
     return ret;
