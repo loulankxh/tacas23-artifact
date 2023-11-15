@@ -42,7 +42,7 @@ contract Ownable {
    * @dev Allows the current owner to transfer control of the contract to a newOwner.
    * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address newOwner) public onlyOwner {
+  function transferOwnership(address newOwner) virtual public onlyOwner {
     require(newOwner != address(0));
     emit OwnershipTransferred(owner, newOwner);
     owner = newOwner;
@@ -83,7 +83,7 @@ contract Pausable is Ownable {
   /**
    * @dev called by the owner to pause, triggers stopped state
    */
-  function pause() onlyOwner whenNotPaused public {
+  function pause() virtual onlyOwner whenNotPaused public {
     paused = true;
     emit Pause();
   }
@@ -292,19 +292,19 @@ contract StandardToken is ERC20, BasicToken {
 
 contract PausableToken is StandardToken, Pausable {
 
-  function transfer(address _to, uint256 _value) virtual override public whenNotPaused returns (bool) {
+  function transfer(address _to, uint256 _value) virtual override(BasicToken,ERC20Basic) public whenNotPaused returns (bool) {
     return super.transfer(_to, _value);
   }
 
-  function transferFrom(address _from, address _to, uint256 _value) override public whenNotPaused returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _value) virtual override public whenNotPaused returns (bool) {
     return super.transferFrom(_from, _to, _value);
   }
 
-  function approve(address _spender, uint256 _value) override public whenNotPaused returns (bool) {
+  function approve(address _spender, uint256 _value) virtual override public whenNotPaused returns (bool) {
     return super.approve(_spender, _value);
   }
 
-  function increaseApproval(address _spender, uint _addedValue) override public whenNotPaused returns (bool success) {
+  function increaseApproval(address _spender, uint _addedValue) virtual override public whenNotPaused returns (bool success) {
     return super.increaseApproval(_spender, _addedValue);
   }
 
@@ -341,9 +341,11 @@ contract BrickblockToken is PausableToken {
   bool onceUpgrade;
   Tx transaction;
   enum Tx {
-	FinalizeTokenSale, Evacuate, Unpause, DistributeToken, Transfer, EndSale
+    FinalizeTokenSale, Evacuate, Unpause, DistributeToken, Transfer,
+    TransferOwnership, Pause, TransferFrom, Approve, IncreaseApproval, DecreaseApproval,
+    ChangeBonusDistributionAddress, ChangeFountainContractAddress, Upgrade
   }
-  
+
 
   event TokenSaleFinished(uint256 totalSupply, uint256 distributedTokens,  uint256 bonusTokens, uint256 companyTokens);
   event Burn(address indexed burner, uint256 value);
@@ -365,7 +367,7 @@ contract BrickblockToken is PausableToken {
   }
 
   constructor(address _predecessorAddress)
-    public
+  public
   {
     // need to start paused to make sure that there can be no transfers until dictated by company
     paused = true;
@@ -384,23 +386,23 @@ contract BrickblockToken is PausableToken {
     //   fountainContractAddress = predecessor.fountainContractAddress();
     //   // if contract is NOT an upgrade
     // } else {
-      // first contract, easy setup
-      totalSupply = initialSupply;
-      balances[address(this)] = initialSupply;
-      emit Transfer(address(0), address(this), initialSupply);
-      tokenSaleActive = true;
-      
-      onceUpgrade=false;
-      onceFinalize=false;
-      onceEndSale=false;
+    // first contract, easy setup
+    totalSupply = initialSupply;
+    balances[address(this)] = initialSupply;
+    emit Transfer(address(0), address(this), initialSupply);
+    tokenSaleActive = true;
+
+    onceUpgrade=false;
+    onceFinalize=false;
+    onceEndSale=false;
     // }
   }
 
   function unpause()
-    public
-    override
-    onlyOwner
-    whenPaused
+  public
+  override
+  onlyOwner
+  whenPaused
   {
     require(dead == false);
     super.unpause();
@@ -419,34 +421,36 @@ contract BrickblockToken is PausableToken {
 
   // decide which wallet to use to distribute bonuses at a later date
   function changeBonusDistributionAddress(address _newAddress)
-    public
-    onlyOwner
-    returns (bool)
+  public
+  onlyOwner
+  returns (bool)
   {
     require(_newAddress != address(this));
     bonusDistributionAddress = _newAddress;
+    transaction = Tx.ChangeBonusDistributionAddress;
     return true;
   }
 
   // fountain contract might change over time... need to be able to change it
   function changeFountainContractAddress(address _newAddress)
-    public
-    onlyOwner
-    returns (bool)
+  public
+  onlyOwner
+  returns (bool)
   {
     // require(isContract(_newAddress));
     require(_newAddress != address(this));
     require(_newAddress != owner);
     fountainContractAddress = _newAddress;
+    transaction = Tx.ChangeFountainContractAddress;
     return true;
   }
 
   // custom transfer function that can be used while paused. Cannot be used after end of token sale
   function distributeTokens(address _contributor, uint256 _value)
-    public
-    onlyOwner
-    supplyAvailable(_value)
-    returns (bool)
+  public
+  onlyOwner
+  supplyAvailable(_value)
+  returns (bool)
   {
     require(tokenSaleActive == true);
     require(_contributor != address(0));
@@ -460,9 +464,9 @@ contract BrickblockToken is PausableToken {
 
   // Calculate the shares for company, bonus & contibutors based on the intiial 50mm number - not what is left over after burning
   function finalizeTokenSale()
-    public
-    onlyOwner
-    returns (bool)
+  public
+  onlyOwner
+  returns (bool)
   {
     // ensure that sale is active. is set to false at the end. can only be performed once.
     require(tokenSaleActive == true);
@@ -517,9 +521,9 @@ contract BrickblockToken is PausableToken {
   // to disable anyone to get rescued more that once
   // approvals are not included due to data structure
   function evacuate(address _user)
-    public
-    only(successorAddress)
-    returns (bool)
+  public
+  only(successorAddress)
+  returns (bool)
   {
     require(dead);
     uint256 _balance = balances[_user];
@@ -535,9 +539,9 @@ contract BrickblockToken is PausableToken {
   // it then will be dead
   // it will be paused to dissallow transfer of tokens
   function upgrade(address _successorAddress)
-    public
-    onlyOwner
-    returns (bool)
+  public
+  onlyOwner
+  returns (bool)
   {
     require(_successorAddress != address(0));
     // require(isContract(_successorAddress));
@@ -546,6 +550,7 @@ contract BrickblockToken is PausableToken {
     paused = true;
     emit Upgrade(successorAddress);
     onceUpgrade=true;
+    transaction = Tx.Upgrade;
     return true;
   }
 
@@ -572,27 +577,67 @@ contract BrickblockToken is PausableToken {
 //     return false;
 //   }
 
-//  // fallback function - do not allow any eth transfers to this contract
-//  fallback()
-//    external
-//  {
-//    revert();
+  function transferOwnership(address newOwner) override public {
+    super.transferOwnership(newOwner);
+    transaction = Tx.TransferOwnership;
+  }
+
+  function pause() override public {
+    super.pause();
+    transaction = Tx.Pause;
+  }
+
+  function transfer(address to, uint256 value) override public returns (bool) {
+    bool ret = super.transfer(to, value);
+    if (ret) transaction = Tx.Transfer;
+    return ret;
+  }
+
+  function transferFrom(address from, address to, uint256 value) override public returns (bool) {
+    bool ret = super.transferFrom(from, to, value);
+    if (ret) transaction = Tx.TransferFrom;
+    return ret;
+  }
+
+  function approve(address spender, uint256 value) override public returns (bool) {
+    bool ret = super.approve(spender, value);
+    if (ret) transaction = Tx.Approve;
+    return ret;
+  }
+
+  function increaseApproval(address _spender, uint _addedValue) override public returns (bool) {
+    bool ret = super.increaseApproval(_spender, _addedValue);
+    if (ret) transaction = Tx.IncreaseApproval;
+    return ret;
+  }
+
+  function decreaseApproval(address _spender, uint _subtractedValue) override public returns (bool) {
+    bool ret = super.decreaseApproval(_spender, _subtractedValue);
+    if (ret) transaction = Tx.DecreaseApproval;
+    return ret;
+  }
+
+  // fallback function - do not allow any eth transfers to this contract
+  fallback()
+  external
+  {
+    revert();
+  }
+
+//  function transferBeforeUnpause() public view {
+//    assert(transaction==Tx.Transfer && !onceUnpaused);
+//  }
+//  function transferAfterEndSale() public view {
+//    assert(!(transaction==Tx.DistributeToken && onceFinalize));
 //  }
 //
-//  function transferBeforeUnpause() public view {
-//	assert(transaction==Tx.Transfer && !onceUnpaused);
-//	}
-//  function transferAfterEndSale() public view {
-//	assert(!(transaction==Tx.DistributeToken && onceFinalize));
-//	}
 //
-//
-//	function evacuateAfterUpgrade() public view {
-//		assert(transaction==Tx.Evacuate && !onceUpgrade);
-//        }
-//	function deadAfterPause() public view {
-//		assert(paused || !dead);
-//    	}
+//  function evacuateAfterUpgrade() public view {
+//    assert(transaction==Tx.Evacuate && !onceUpgrade);
+//  }
+//  function deadAfterPause() public view {
+//    assert(paused || !dead);
+//  }
 }
 // contract Deployer{
 //    BrickblockToken b = new BrickblockToken(0x0);

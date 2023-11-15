@@ -56,7 +56,7 @@ abstract contract ERC20Basic {
 
 /**
  * @title Basic token
- * @dev Basic version of StandardToken, with no allowances. 
+ * @dev Basic version of StandardToken, with no allowances.
  */
 contract BasicToken is ERC20Basic {
   using SafeMath for uint256;
@@ -77,7 +77,7 @@ contract BasicToken is ERC20Basic {
 
   /**
   * @dev Gets the balance of the specified address.
-  * @param _owner The address to query the the balance of. 
+  * @param _owner The address to query the the balance of.
   * @return An uint256 representing the amount owned by the passed address.
   */
   function balanceOf(address _owner) public override view returns (uint256) {
@@ -120,7 +120,7 @@ contract StandardToken is ERC20, BasicToken {
    * @param _to address The address which you want to transfer to
    * @param _value uint256 the amout of tokens to be transfered
    */
-  function transferFrom(address _from, address _to, uint256 _value) public override returns (bool) {
+  function transferFrom(address _from, address _to, uint256 _value) public virtual override returns (bool) {
     uint256 _allowance = allowed[_from][msg.sender];
 
     // Check is not needed because sub(_allowance, _value) will already throw if this condition is not met
@@ -138,7 +138,7 @@ contract StandardToken is ERC20, BasicToken {
    * @param _spender The address which will spend the funds.
    * @param _value The amount of tokens to be spent.
    */
-  function approve(address _spender, uint256 _value) public override returns (bool) {
+  function approve(address _spender, uint256 _value) public virtual override returns (bool) {
 
     // To change the approve amount you first have to reduce the addresses`
     //  allowance to zero by calling `approve(_spender, 0)` if it is not
@@ -195,7 +195,7 @@ contract Ownable {
    * @dev Allows the current owner to transfer control of the contract to a newOwner.
    * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address newOwner) public onlyOwner {
+  function transferOwnership(address newOwner) virtual public onlyOwner {
     if (newOwner != address(0)) {
       owner = newOwner;
     }
@@ -242,7 +242,7 @@ contract MintableToken is StandardToken, Ownable {
    * @dev Function to stop minting new tokens.
    * @return True if the operation was successful.
    */
-  function finishMinting() public onlyOwner returns (bool) {
+  function finishMinting() virtual public onlyOwner returns (bool) {
     mintingFinished = true;
     emit MintFinished();
     return true;
@@ -250,11 +250,11 @@ contract MintableToken is StandardToken, Ownable {
 }
 
 /**
- * @title Crowdsale 
+ * @title Crowdsale
  * @dev Crowdsale is a base contract for managing a token crowdsale.
  * Crowdsales have a start and end block, where investors can make
  * token purchases and the crowdsale will assign them tokens based
- * on a token per ETH rate. Funds collected are forwarded to a wallet 
+ * on a token per ETH rate. Funds collected are forwarded to a wallet
  * as they arrive.
  */
 contract Crowdsale is MintableToken {
@@ -282,7 +282,7 @@ contract Crowdsale is MintableToken {
    * @param beneficiary who got the tokens
    * @param value weis paid for purchase
    * @param amount amount of tokens purchased
-   */ 
+   */
   event TokenPurchase(address indexed purchaser, address indexed beneficiary, uint256 value, uint256 amount);
 
   constructor(uint256 _startBlock, uint256 _endBlock, uint256 _rate) {
@@ -298,7 +298,7 @@ contract Crowdsale is MintableToken {
     // wallet = _wallet;
   }
 
-  // creates the token to be sold. 
+  // creates the token to be sold.
   // override this method to have crowdsale of a specific mintable token.
   // function createTokenContract() internal returns (MintableToken) {
   //   return new MintableToken();
@@ -323,7 +323,7 @@ contract Crowdsale is MintableToken {
     // update state
     weiRaised = weiRaised.add(weiAmount);
 
-    // token.mint(beneficiary, tokens);	
+    // token.mint(beneficiary, tokens);
     mint(beneficiary, tokens);
 
     emit TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
@@ -362,8 +362,8 @@ contract CappedCrowdsale is Crowdsale {
 
   uint256 public cap;
 
-  constructor(uint256 _startBlock, uint256 _endBlock, uint256 _rate, uint256 _cap) 
- 	Crowdsale(_startBlock, _endBlock, _rate) {
+  constructor(uint256 _startBlock, uint256 _endBlock, uint256 _rate, uint256 _cap)
+  Crowdsale(_startBlock, _endBlock, _rate) {
     require(_cap > 0);
     cap = _cap;
   }
@@ -384,12 +384,12 @@ contract CappedCrowdsale is Crowdsale {
 
 }
 
+
 /**
  * @title FinalizableCrowdsale
  * @dev Extension of Crowsdale where an owner can do extra work
  * after finishing. By default, it will end token minting.
  */
-
 /**
 * @notice invariant (!(transaction==Tx.BuyTokens && onceFinalized))
 */
@@ -401,15 +401,16 @@ contract FinalizableCrowdsale is Crowdsale {
 
   event Finalized();
   bool onceFinalized=false;
-  
+
   Tx transaction;
   enum Tx {
-	BuyTokens,Finalize,Mint,Transfer,TransferFrom
+    BuyTokens,Finalize,Mint,Transfer,TransferFrom,
+    Approve, TransferOwnership, FinishMinting
   }
 
 
-  constructor(uint256 _startBlock, uint256 _endBlock, uint256 _rate) 
-	Crowdsale(_startBlock, _endBlock, _rate) {}
+  constructor(uint256 _startBlock, uint256 _endBlock, uint256 _rate)
+  Crowdsale(_startBlock, _endBlock, _rate) {}
 
   // should be called after crowdsale ends, to do
   // some extra finalization work
@@ -419,7 +420,7 @@ contract FinalizableCrowdsale is Crowdsale {
 
     // finalization();
     emit Finalized();
-    
+
     isFinalized = true;
     finishMinting();
     onceFinalized=true;
@@ -431,21 +432,44 @@ contract FinalizableCrowdsale is Crowdsale {
   // function finalization() internal {
   //   token.finishMinting();
   // }
-  
+
   function mint(address _to, uint256 _amount) override public returns (bool) {
-      bool ret = super.mint(_to,_amount);
-      if (ret) {transaction=Tx.Mint;}
-	return ret;
+    bool ret = super.mint(_to,_amount);
+    if (ret) {transaction=Tx.Mint;}
+    return ret;
   }
 
-  function transfer(address _to, uint256 _amount) override public returns (bool) {
-      bool ret = super.transfer(_to,_amount);
-      if (ret) {transaction=Tx.Transfer;}
-      return ret;
+  function transfer(address _to, uint256 _amount) override (BasicToken,ERC20Basic) public returns (bool) {
+    bool ret = super.transfer(_to,_amount);
+    if (ret) {transaction=Tx.Transfer;}
+    return ret;
   }
   function buyTokens(address beneficiary) override public payable {
- 	super.buyTokens(beneficiary);
-        transaction=Tx.BuyTokens;
+    super.buyTokens(beneficiary);
+    transaction=Tx.BuyTokens;
+  }
+
+  function transferFrom(address from, address to, uint256 value) override public returns (bool) {
+    bool ret = super.transferFrom(from ,to, value);
+    if (ret) transaction = Tx.TransferFrom;
+    return ret;
+  }
+
+  function approve(address spender, uint256 value) override public returns (bool) {
+    bool ret = super.approve(spender, value);
+    if (ret) transaction = Tx.Approve;
+    return ret;
+  }
+
+  function transferOwnership(address newOwner) override public {
+    super.transferOwnership(newOwner);
+    transaction = Tx.TransferOwnership;
+  }
+
+  function finishMinting() override public returns (bool) {
+    bool ret = super.finishMinting();
+    transaction = Tx.FinishMinting;
+    return ret;
   }
 
 //  function buyAfterFinalization() public view {
